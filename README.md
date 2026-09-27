@@ -1,52 +1,94 @@
-# 📥 appGrupo1Consumidor — Microservicio Consumidor RabbitMQ (Pregunta 4)
+# appGrupo1Consumidor - Microservicio Consumidor RabbitMQ
 
-[![Java](https://img.shields.io/badge/Java-25-orange?logo=openjdk&logoColor=white)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-brightgreen?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-AMQP%200--9--1-FF6600?logo=rabbitmq&logoColor=white)](https://www.rabbitmq.com/)
-[![Algorithm](https://img.shields.io/badge/Algorithm-Fibonacci%20%2B%20Cache-blueviolet)](https://en.wikipedia.org/wiki/Fibonacci_sequence)
-[![Port](https://img.shields.io/badge/Port-8082-success)](http://localhost:8082)
-
-Microservicio **Consumidor** desarrollado para la **Pregunta 4** de la **Evaluación T1** del curso **Desarrollo de Aplicaciones Web II** (Cibertec - Grupo 1).  
-Escucha mensajes asíncronos desde **RabbitMQ**, deserializa la secuencia de posiciones numéricas, aplica una pausa de 20 segundos según la rúbrica y calcula los valores de Fibonacci correspondientes utilizando un algoritmo optimizado con caché en memoria.
+Evaluacion T1 del curso **Desarrollo de Aplicaciones Web II**  
+Instituto Superior Tecnologico Cibertec  
+Grupo 1
 
 ---
 
-## 📐 Flujo de Procesamiento Asíncrono
+## Integrantes del Grupo
+
+| N° | Apellidos y Nombres | Grupo |
+|:--:|---------------------|:-----:|
+| 1 | Chaupis Alvarez Jhonny Samuel | 1 |
+| 2 | Cruz Valdez Ronald Corwin | 1 |
+| 3 | Hinojosa Cano Carlos Daniel | 1 |
+| 4 | Hurtado Sernaque Brayan Luis | 1 |
+| 5 | Alayo Oliveros Mathias Miller | 1 |
+
+---
+
+## Descripcion del Proyecto
+
+El microservicio consumidor corresponde a la solucion de la Pregunta 4 de la Evaluacion T1. Se encarga de escuchar los mensajes publicados en la cola de RabbitMQ, convertir la cadena recibida en un arreglo de enteros, efectuar una pausa obligatoria de 20 segundos, invocar el servicio de calculo de la serie de Fibonacci con soporte de memoizacion en memoria e imprimir en consola el desglose de los resultados obtenidos con su marca de tiempo.
+
+---
+
+## Entorno y Requisitos Tecnicos
+
+- **Lenguaje:** Java 25
+- **Framework:** Spring Boot 4.1.1
+- **Sistema de mensajeria:** RabbitMQ (protocolo AMQP 0-9-1)
+- **Gestor de construccion:** Apache Maven 3.9+ (o Maven Wrapper incluido)
+- **Puerto del servicio:** 8082
+- **Puerto de RabbitMQ:** 5672
+
+---
+
+## Flujo de Procesamiento Asincrono
 
 ```mermaid
 flowchart TD
     subgraph RabbitMQ ["Broker RabbitMQ"]
-        Q["📥 Queue: Grupo1Queue"]
+        Q["Queue: Grupo1Queue"]
     end
 
-    subgraph Consumidor ["appGrupo1Consumidor (Port: 8082)"]
+    subgraph Consumidor ["appGrupo1Consumidor (Puerto 8082)"]
         RL["@RabbitListener<br/>receiveMessage(String cadenaNumeros)"]
-        Parse["Convierte cadena a Integer[]:<br/>Stream.of(cadena.split(';')).map(...).toArray()"]
-        Pause["⏱️ Pausa obligatoria de 20 segundos<br/>Thread.sleep(20000)"]
-        Service["FibonacciService<br/>Inyección de componente y cálculo"]
-        Cache["💾 Memoria Caché Map&lt;Integer, Long&gt;"]
-        Logs["📝 Impresión detallada en logs:<br/>Valores individuales, resultado final y timestamp"]
+        Parse["Conversion de cadena a Integer[]:<br/>Stream.of(cadena.split(';')).map(...).toArray()"]
+        Pause["Pausa obligatoria de 20 segundos<br/>Thread.sleep(20000)"]
+        Service["FibonacciService<br/>Inyeccion de componente y calculo"]
+        Cache["Memoria Cache Map&lt;Integer, Long&gt;"]
+        Logs["Impresion en consola / logs:<br/>Valores individuales, resultado final y timestamp"]
     end
 
     Q -->|Consume mensaje| RL
     RL --> Parse
     Parse --> Pause
     Pause --> Service
-    Service <-->|Consulta / Guarda| Cache
+    Service <-->|Consulta y almacenamiento| Cache
     Service --> Logs
 ```
 
 ---
 
-## ⚙️ Configuración y Componentes Clave
+## Configuracion de RabbitMQ
 
-### 1. Configuración de RabbitMQ
-* **Queue:** `Grupo1Queue`
-* **Exchange:** `Grupo1Exchange`
-* **Routing Key:** `Grupo1Routing`
+Los parametros de conexion y enrutamiento en RabbitMQ son:
 
-### 2. Conversión del Mensaje
-Tal como lo solicita el examen:
+| Parametro | Definicion en el Examen | Valor Configurado |
+|---|---|---|
+| Cola (Queue) | NroGrupoQueue | Grupo1Queue |
+| Intercambiador (Exchange) | NroGrupoExchange | Grupo1Exchange |
+| Clave de Enrutamiento (Routing Key) | NroGrupoRouting | Grupo1Routing |
+| Host del broker | spring.rabbitmq.host | localhost |
+| Puerto AMQP | spring.rabbitmq.port | 5672 |
+
+---
+
+## Componentes Principales de la Solucion
+
+### 1. Receptor de Mensajes (`FibonacciConsumer`)
+Escucha los mensajes entrantes de la cola mediante la anotacion `@RabbitListener`:
+```java
+@RabbitListener(queues = "Grupo1Queue")
+public void receiveMessage(String cadenaNumeros) {
+    // Procesamiento del mensaje
+}
+```
+
+### 2. Conversion de la Cadena a `Integer[]`
+Se procesa la cadena delimitada por punto y coma utilizando la API Stream de Java:
 ```java
 Integer[] integerArray = Stream.of(cadenaNumeros.split(";"))
                                .map(String::trim)
@@ -55,8 +97,19 @@ Integer[] integerArray = Stream.of(cadenaNumeros.split(";"))
                                .toArray(Integer[]::new);
 ```
 
-### 3. Servicio de Fibonacci con Memoización (`FibonacciService`)
-Optimización mediante caché para evitar recálculos exponenciales:
+### 3. Pausa Obligatoria de 20 Segundos
+Se suspende la ejecucion del hilo de procesamiento durante 20 segundos (`20000` milisegundos) antes de ejecutar el algoritmo:
+```java
+try {
+    Thread.sleep(20000);
+} catch (InterruptedException e) {
+    Thread.currentThread().interrupt();
+    log.error("Error en la pausa de ejecucion", e);
+}
+```
+
+### 4. Servicio de Calculo con Memoizacion (`FibonacciService`)
+El servicio implementa el calculo de los terminos de la serie de Fibonacci empleando una coleccion `Map<Integer, Long>` como cache en memoria para evitar el costo computacional de subproblemas repetidos:
 ```java
 @Service
 public class FibonacciService {
@@ -79,34 +132,12 @@ public class FibonacciService {
 }
 ```
 
-### 4. Pausa de 20 Segundos e Impresión de Resultados
-El consumidor ejecuta `Thread.sleep(20000)` antes de procesar el cálculo, e imprime en consola mediante `Slf4j` el resultado por cada posición y el consolidado con fecha y hora.
-
 ---
 
-## 🚀 Puesta en Marcha
+## Salida Esperada en Consola
 
-### Prerrequisitos
-* Tener el broker **RabbitMQ** corriendo en `localhost:5672`.
-* Microservicio `appGrupo1Productor` levantado o listo para enviar mensajes.
+Al recibir como mensaje la cadena de ejemplo `1;2;15;8`, el consumidor genera la siguiente salida en consola:
 
-### Ejecución del Consumidor
-```bash
-# 1. Clonar el repositorio
-git clone https://github.com/samuelchaupis-cloud/appGrupo1Consumidor.git
-cd appGrupo1Consumidor
-
-# 2. Compilar y arrancar
-./mvnw clean compile
-./mvnw spring-boot:run
-```
-El microservicio quedará a la espera de mensajes en el puerto **`8082`**.
-
----
-
-## 🖥️ Evidencia en Consola / Salida de Ejemplo
-
-Cuando el Productor envía `1;2;15;8`, el Consumidor muestra la siguiente traza:
 ```text
 INFO  [consumer] : Mensaje recibido de RabbitMQ: 1;2;15;8
 ... [espera de 20 segundos] ...
@@ -121,15 +152,56 @@ INFO  [consumer] : Procesado, fecha y hora 2026-09-27T01:04:30
 
 ---
 
-## 🌿 Organización de Ramas de Git
+## Compilacion y Ejecucion
 
-* **`main`**: Rama con la versión final probada del consumidor.
-* **`develop`**: Integración con el productor y RabbitMQ.
-* **Ramas por integrante**: `samuel`, `jmalayo`, `daniel`, etc., con control de Pull Requests y revisiones de código.
+### Prerrequisitos
+
+- Servidor **RabbitMQ** en ejecucion en el puerto `5672`.
+- Microservicio `appGrupo1Productor` configurado para emitir mensajes.
+
+### Pasos de Ejecucion
+
+1. Clonar el repositorio:
+```bash
+git clone https://github.com/samuelchaupis-cloud/appGrupo1Consumidor.git
+cd appGrupo1Consumidor
+```
+
+2. Compilar con Maven Wrapper:
+- En entornos Unix (Linux / macOS):
+```bash
+./mvnw clean compile
+```
+- En entornos Windows:
+```cmd
+mvnw.cmd clean compile
+```
+
+3. Iniciar el servicio consumidor:
+- En entornos Unix (Linux / macOS):
+```bash
+./mvnw spring-boot:run
+```
+- En entornos Windows:
+```cmd
+mvnw.cmd spring-boot:run
+```
+
+El servicio iniciara en el puerto `8082` y quedara a la espera de mensajes de la cola `Grupo1Queue`.
 
 ---
 
-## 👥 Equipo de Desarrollo (Grupo 1)
-* **Samuel Chaupis** — Implementación del Consumidor AMQP, Servicio Fibonacci y Pausa de 20s.
-* **J. Malayo** — Verificación de colas y contratos de mensajería.
-* **Integrantes Grupo 1** — Pruebas de integración extremo a extremo con RabbitMQ.
+## Estructura de Ramas
+
+El repositorio organiza el trabajo en las siguientes ramas:
+
+- `main`: Rama principal con la version final y funcional del microservicio consumidor.
+- `develop`: Rama de integracion para consolidar modificaciones antes del pase a `main`.
+- Ramas por integrante:
+  - `samuel`: Rama de trabajo de Jhonny Samuel Chaupis Alvarez.
+  - `jhonny-chaupis`: Alias nominal para identificacion de integrante.
+  - `ronald-cruz`: Rama de trabajo de Ronald Corwin Cruz Valdez.
+  - `daniel-hinojosa`: Rama de trabajo de Carlos Daniel Hinojosa Cano.
+  - `brayan-hurtado`: Rama de trabajo de Brayan Luis Hurtado Sernaque.
+  - `mathias-alayo`: Rama de trabajo de Mathias Miller Alayo Oliveros.
+  - `jmalayo`: Rama base del repositorio colegiado.
